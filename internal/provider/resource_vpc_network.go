@@ -136,7 +136,7 @@ func (r *vpcNetworkResource) Schema(_ context.Context, _ resource.SchemaRequest,
 
 			"network_address": schema.StringAttribute{MarkdownDescription: "Resolved CIDR, for example `10.50.33.0/24`.", Computed: true},
 			"gateway":         schema.StringAttribute{MarkdownDescription: "Gateway address of the subnet.", Computed: true},
-			"created_at":      schema.StringAttribute{MarkdownDescription: "Creation timestamp.", Computed: true},
+			"created_at":      schema.StringAttribute{MarkdownDescription: "Creation timestamp.", Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 		},
 	}
 }
@@ -334,6 +334,14 @@ func (r *vpcNetworkResource) apply(n *vpcNetworkAPI, m *vpcNetworkModel, vpcID s
 
 	if n.NetworkSize != nil && n.NetworkSize.Value != "" {
 		m.NetworkSize = types.StringValue(n.NetworkSize.Value)
+	}
+	// Reported only as "network_address"; recovered so an import does not plan
+	// a replacement.
+	if n.NetworkAddress != nil {
+		if ip, size, ok := splitCIDR(*n.NetworkAddress); ok {
+			fillIfEmpty(&m.IPAddress, ip)
+			fillIfEmpty(&m.NetworkSize, size)
+		}
 	}
 
 	if n.VPCID != nil && *n.VPCID != "" {

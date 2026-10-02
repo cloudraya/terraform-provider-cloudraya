@@ -14,7 +14,7 @@ A CloudRaya VPC (supernet). Creating one also provisions an initial subnet and A
 
 ```terraform
 data "cloudraya_region" "main" {
-  name = "Jakarta-Edge2-LIVE"
+  name = "Jakarta"
 }
 
 # Creating a VPC also provisions its first subnet and ACL. Manage further
@@ -22,12 +22,12 @@ data "cloudraya_region" "main" {
 resource "cloudraya_vpc" "main" {
   name         = "main"
   region_id    = data.cloudraya_region.main.id
-  ip_address   = "10.40.0.0"
+  ip_address   = "10.10.32.0"
   network_size = "19"
 
   initial_subnet = {
     name         = "main-subnet"
-    ip_address   = "10.40.0.0"
+    ip_address   = "10.10.32.0"
     network_size = "25"
   }
 

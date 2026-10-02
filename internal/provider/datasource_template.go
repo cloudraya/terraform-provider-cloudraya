@@ -28,8 +28,7 @@ func (d *templateDataSource) Metadata(_ context.Context, req datasource.Metadata
 func (d *templateDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Looks up a CloudRaya OS template by name, scoped to a region — templates " +
-			"are offered per region, so the same name can exist in one region and not another. Backed " +
-			"by the product_2 catalog — see the provider README for its limitations.",
+			"are offered per region, so the same name can exist in one region and not another.",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
 				MarkdownDescription: "Template name, for example `Ubuntu 22.04 v05.22`.",

@@ -3,18 +3,18 @@
 page_title: "cloudraya_region Data Source - cloudraya"
 subcategory: ""
 description: |-
-  Looks up a CloudRaya region by its display name. Backed by the product catalog, which is not yet available on every API deployment — see the provider README.
+  Looks up a CloudRaya region by its display name.
 ---
 
 # cloudraya_region (Data Source)
 
-Looks up a CloudRaya region by its display name. Backed by the product catalog, which is not yet available on every API deployment — see the provider README.
+Looks up a CloudRaya region by its display name.
 
 ## Example Usage
 
 ```terraform
 data "cloudraya_region" "main" {
-  name = "Jakarta-Edge2-LIVE"
+  name = "Jakarta"
 }
 ```
 
@@ -23,7 +23,7 @@ data "cloudraya_region" "main" {
 
 ### Required
 
-- `name` (String) Region display name, for example `Jakarta-Edge2-LIVE`.
+- `name` (String) Region display name, for example `Jakarta`.
 
 ### Optional
 

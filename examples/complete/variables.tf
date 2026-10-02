@@ -6,13 +6,13 @@ variable "project_id" {
 variable "region_name" {
   description = "Region display name."
   type        = string
-  default     = "Jakarta-Edge2-LIVE"
+  default     = "Jakarta"
 }
 
 variable "package_name" {
   description = "VM package (size) name. Must be offered in the region."
   type        = string
-  default     = "small-free-1-IP"
+  default     = "Small-R2"
 }
 
 variable "template_name" {
@@ -29,7 +29,7 @@ variable "network_name" {
 variable "disk_package_name" {
   description = "Data-disk package name."
   type        = string
-  default     = "data-disk-15"
+  default     = "Disk-50"
 }
 
 variable "hostname" {

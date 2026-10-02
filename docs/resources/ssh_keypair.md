@@ -27,7 +27,7 @@ resource "cloudraya_ssh_keypair" "deploy" {
 ### Required
 
 - `name` (String) Keypair name. Changing this forces a new keypair.
-- `public_key` (String) OpenSSH-format public key. Changing this forces a new keypair.
+- `public_key` (String) OpenSSH-format public key. Changing this forces a new keypair; leading and trailing whitespace is ignored.
 
 ### Optional
 

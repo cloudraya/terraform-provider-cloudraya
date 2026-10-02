@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -68,9 +69,10 @@ func (r *sshKeypairResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
 			},
 			"public_key": schema.StringAttribute{
-				MarkdownDescription: "OpenSSH-format public key. Changing this forces a new keypair.",
-				Required:            true,
-				PlanModifiers:       []planmodifier.String{stringplanmodifier.RequiresReplace()},
+				MarkdownDescription: "OpenSSH-format public key. Changing this forces a new keypair; " +
+					"leading and trailing whitespace is ignored.",
+				Required:      true,
+				PlanModifiers: []planmodifier.String{replaceIfKeyChanged()},
 			},
 			"project_id": schema.StringAttribute{
 				MarkdownDescription: "Project that owns the keypair. Defaults to the provider's `project_id`. " +
@@ -80,8 +82,16 @@ func (r *sshKeypairResource) Schema(_ context.Context, _ resource.SchemaRequest,
 				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace(), stringplanmodifier.UseStateForUnknown()},
 			},
 
-			"user_id":    schema.StringAttribute{MarkdownDescription: "Owning user.", Computed: true},
-			"created_at": schema.StringAttribute{MarkdownDescription: "Creation timestamp.", Computed: true},
+			"user_id": schema.StringAttribute{
+				MarkdownDescription: "Owning user.",
+				Computed:            true,
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+			},
+			"created_at": schema.StringAttribute{
+				MarkdownDescription: "Creation timestamp.",
+				Computed:            true,
+				PlanModifiers:       []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+			},
 		},
 	}
 }
@@ -161,11 +171,25 @@ func (r *sshKeypairResource) Read(ctx context.Context, req resource.ReadRequest,
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
-// Update can only be reached if a configurable attribute lost its
-// RequiresReplace plan modifier: CloudRaya has no update endpoint, so there is
-// nothing to send. Erroring here surfaces that provider bug instead of letting
-// Terraform report a successful apply that changed nothing on the platform.
-func (r *sshKeypairResource) Update(_ context.Context, _ resource.UpdateRequest, resp *resource.UpdateResponse) {
+// Update is reached only for a public_key that differs from state in
+// whitespace alone — typically after an import, because file() keeps the key
+// file's trailing newline and the API stores the key without it. That is not a
+// change to the key, so state is updated and nothing is sent. Any other change
+// is planned as a replacement; arriving here with one is a provider bug, and
+// erroring surfaces it instead of reporting a change that never happened.
+func (r *sshKeypairResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var plan, state sshKeypairModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	if plan.Name.Equal(state.Name) && plan.ProjectID.Equal(state.ProjectID) &&
+		strings.TrimSpace(plan.PublicKey.ValueString()) == strings.TrimSpace(state.PublicKey.ValueString()) {
+		plan.ID, plan.UserID, plan.CreatedAt = state.ID, state.UserID, state.CreatedAt
+		resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
+		return
+	}
 	resp.Diagnostics.AddError("SSH keypairs cannot be updated in place",
 		"CloudRaya exposes no update endpoint for SSH keypairs, so every configurable attribute "+
 			"is marked RequiresReplace and Terraform should never call Update. Reaching this point "+
@@ -219,4 +243,20 @@ func (r *sshKeypairResource) applyComputed(key *sshKeypairAPI, m *sshKeypairMode
 func (r *sshKeypairResource) applyAll(key *sshKeypairAPI, m *sshKeypairModel, projectID string) {
 	r.applyComputed(key, m, projectID)
 	m.Name = types.StringValue(key.Name)
+	// Empty only after an import; recovered so the first plan does not replace
+	// the keypair.
+	fillIfEmpty(&m.PublicKey, key.PublicKey)
+}
+
+// replaceIfKeyChanged forces a new keypair when the key changes, ignoring
+// surrounding whitespace, which is not part of an OpenSSH key.
+func replaceIfKeyChanged() planmodifier.String {
+	return stringplanmodifier.RequiresReplaceIf(
+		func(_ context.Context, req planmodifier.StringRequest, resp *stringplanmodifier.RequiresReplaceIfFuncResponse) {
+			resp.RequiresReplace = strings.TrimSpace(req.PlanValue.ValueString()) !=
+				strings.TrimSpace(req.StateValue.ValueString())
+		},
+		"Changing the key forces a new keypair; surrounding whitespace is ignored.",
+		"Changing the key forces a new keypair; surrounding whitespace is ignored.",
+	)
 }

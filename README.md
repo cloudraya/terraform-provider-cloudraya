@@ -102,11 +102,11 @@ provider "cloudraya" {
 }
 
 data "cloudraya_region" "main" {
-  name = "Jakarta-Edge2-LIVE"
+  name = "Jakarta"
 }
 
 data "cloudraya_package" "small" {
-  name      = "small-free-1-IP"
+  name      = "Small-R2"
   region_id = data.cloudraya_region.main.id
 }
 
@@ -116,11 +116,11 @@ data "cloudraya_template" "ubuntu" {
 }
 
 data "cloudraya_vpc_network" "net" {
-  name = "my-subnet"
+  name = "app-subnet"
 }
 
 data "cloudraya_vm_storage_package" "disk" {
-  name = "data-disk-15"
+  name = "Disk-50"
 }
 
 resource "cloudraya_ssh_keypair" "deploy" {
@@ -162,11 +162,6 @@ and every resource and data source has its own example under
   keypairs, so changing a keypair's name or key destroys and recreates it.
 - **Volumes are detached before they are destroyed**, so destroying a VM and
   its data disk together works in a single `terraform destroy`.
-- **Lookup data sources need the product catalog.** `cloudraya_region`,
-  `cloudraya_package`, `cloudraya_template` and `cloudraya_vm_storage_package`
-  read a catalog endpoint that is not yet available on every CloudRaya API
-  deployment. Where it is unavailable, pass the IDs to the resources directly
-  instead.
 
 ## Importing existing resources
 
@@ -181,6 +176,12 @@ Subnets are addressed under their VPC, so they take both IDs:
 ```sh
 terraform import cloudraya_vpc_network.app <vpc_id>/<network_id>
 ```
+
+The first `terraform apply` after an import may show a few in-place updates and
+no replacements. These updates record values the API only returns at creation
+time, such as a VPC's `initial_subnet` and `initial_acl` blocks. CloudRaya does
+not report which SSH keypairs a VM has, so that same apply also re-applies the
+VM's configured `ssh_keypair_ids`. After it, the plan is clean.
 
 ## Development
 
@@ -212,3 +213,7 @@ go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs@v0.21.0 gener
 Issues and pull requests are welcome. Please run `go vet ./...` and
 `go test ./...` before opening a pull request, and regenerate the docs if you
 change a schema.
+
+## License
+
+[Mozilla Public License 2.0](LICENSE)

@@ -3,12 +3,12 @@
 page_title: "cloudraya_template Data Source - cloudraya"
 subcategory: ""
 description: |-
-  Looks up a CloudRaya OS template by name, scoped to a region — templates are offered per region, so the same name can exist in one region and not another. Backed by the product_2 catalog — see the provider README for its limitations.
+  Looks up a CloudRaya OS template by name, scoped to a region — templates are offered per region, so the same name can exist in one region and not another.
 ---
 
 # cloudraya_template (Data Source)
 
-Looks up a CloudRaya OS template by name, scoped to a region — templates are offered per region, so the same name can exist in one region and not another. Backed by the product_2 catalog — see the provider README for its limitations.
+Looks up a CloudRaya OS template by name, scoped to a region — templates are offered per region, so the same name can exist in one region and not another.
 
 ## Example Usage
 

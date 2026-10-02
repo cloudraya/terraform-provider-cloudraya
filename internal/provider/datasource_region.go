@@ -32,7 +32,7 @@ type regionDataSourceModel struct {
 	StatusText types.String `tfsdk:"status_text"`
 }
 
-// regionAPI mirrors one entry of GET /v1/regions on the product_2 catalog.
+// regionAPI mirrors one entry of GET /v1/regions on the product catalog.
 type regionAPI struct {
 	ID          string `json:"id"`
 	DisplayName string `json:"display_name"`
@@ -52,12 +52,10 @@ func (d *regionDataSource) Metadata(_ context.Context, req datasource.MetadataRe
 
 func (d *regionDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Looks up a CloudRaya region by its display name. Backed by the " +
-			"product catalog, which is not yet available on every API deployment — see the " +
-			"provider README.",
+		MarkdownDescription: "Looks up a CloudRaya region by its display name.",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Region display name, for example `Jakarta-Edge2-LIVE`.",
+				MarkdownDescription: "Region display name, for example `Jakarta`.",
 				Required:            true,
 			},
 			"project_id": schema.StringAttribute{
@@ -103,7 +101,7 @@ func (d *regionDataSource) Read(ctx context.Context, req datasource.ReadRequest,
 	}
 
 	var list regionListAPI
-	if err := d.client.Do(ctx, http.MethodGet, client.ServiceProductCatalog,
+	if err := d.client.DoCatalog(ctx, http.MethodGet,
 		"/v1/regions?project_id="+projectID, nil, &list); err != nil {
 		resp.Diagnostics.AddError("Unable to list regions", err.Error())
 		return

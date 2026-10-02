@@ -15,7 +15,7 @@ Looks up an existing CloudRaya VPC subnet by name, across every VPC in the proje
 ```terraform
 # Finds an existing subnet by name across every VPC in the project.
 data "cloudraya_vpc_network" "existing" {
-  name = "default-vpcnet"
+  name = "app-subnet"
 }
 ```
 
@@ -24,7 +24,7 @@ data "cloudraya_vpc_network" "existing" {
 
 ### Required
 
-- `name` (String) Subnet name, for example `default-vpcnet-042258`.
+- `name` (String) Subnet name, for example `app-subnet`.
 
 ### Optional
 

@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -26,4 +27,19 @@ func optionalString(v types.String) string {
 		return ""
 	}
 	return v.ValueString()
+}
+
+// splitCIDR splits "10.20.64.0/19" into its address and prefix length.
+func splitCIDR(cidr string) (ip, size string, ok bool) {
+	ip, size, ok = strings.Cut(cidr, "/")
+	return ip, size, ok && ip != "" && size != ""
+}
+
+// fillIfEmpty sets an attribute only when it holds no value yet. Read uses it
+// for attributes the API reports under a different name: after an import they
+// are empty and must be recovered, but otherwise the configured value stands.
+func fillIfEmpty(dst *types.String, v string) {
+	if v != "" && (dst.IsNull() || dst.IsUnknown()) {
+		*dst = types.StringValue(v)
+	}
 }

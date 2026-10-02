@@ -27,11 +27,10 @@ func (d *vmStoragePackageDataSource) Metadata(_ context.Context, req datasource.
 
 func (d *vmStoragePackageDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Looks up a CloudRaya block-storage (data disk) package by name. Backed by " +
-			"the product_2 catalog — see the provider README for its limitations.",
+		MarkdownDescription: "Looks up a CloudRaya block-storage (data disk) package by name.",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Storage package name, for example `new-storage`.",
+				MarkdownDescription: "Storage package name, for example `Disk-50`.",
 				Required:            true,
 			},
 			"region_id": schema.StringAttribute{

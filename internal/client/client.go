@@ -34,14 +34,14 @@ const (
 	ServiceRegistry      = "image-registry"
 	ServiceProduct       = "product"
 
-	// ServiceProductCatalog ("product_2") returns the ULID region/package/
-	// template ids that create calls require; ServiceProduct's /v1/regions and
-	// /v1/products return integer ids that are not accepted as region_id,
-	// package_id or template_id. The catalog is not yet served by every API
-	// deployment (api-v2.cloudraya.com answers 404), so the data sources built
-	// on it only work where it is available.
+	// ServiceProductCatalog ("product_2") is the same catalog API served under
+	// a second prefix on some deployments. DoCatalog tries ServiceProduct first
+	// and falls back to it.
 	ServiceProductCatalog = "product_2"
 )
+
+// catalogServices is the order DoCatalog tries the catalog prefixes in.
+var catalogServices = []string{ServiceProduct, ServiceProductCatalog}
 
 const DefaultBaseURL = "https://api-v2.cloudraya.com"
 
@@ -63,6 +63,9 @@ type Client struct {
 	mu       sync.Mutex
 	token    string
 	tokenExp time.Time
+
+	catalogMu      sync.Mutex
+	catalogService string
 }
 
 // tokenSkew refreshes the token slightly before it actually expires so a
@@ -96,6 +99,46 @@ func New(cfg Config) (*Client, error) {
 // ProjectID is the provider-level default project, used when a resource does
 // not set one of its own.
 func (c *Client) ProjectID() string { return c.projectID }
+
+// DoCatalog is Do against the product catalog, whose prefix differs between
+// deployments: "product" on most, "product_2" where "product" is absent or
+// down. The first prefix that answers is remembered for the client's lifetime.
+func (c *Client) DoCatalog(ctx context.Context, method, path string, body, out any) error {
+	c.catalogMu.Lock()
+	known := c.catalogService
+	c.catalogMu.Unlock()
+	if known != "" {
+		return c.Do(ctx, method, known, path, body, out)
+	}
+
+	var firstErr error
+	for _, svc := range catalogServices {
+		err := c.Do(ctx, method, svc, path, body, out)
+		if err == nil {
+			c.catalogMu.Lock()
+			c.catalogService = svc
+			c.catalogMu.Unlock()
+			return nil
+		}
+		if !serviceUnavailable(err) {
+			return err
+		}
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
+}
+
+// serviceUnavailable reports a response meaning "this prefix is not served
+// here" (404) or "it is down" (5xx), as opposed to an answer from the service.
+func serviceUnavailable(err error) bool {
+	var apiErr *Error
+	if !asError(err, &apiErr) {
+		return false
+	}
+	return apiErr.StatusCode == http.StatusNotFound || apiErr.StatusCode >= 500
+}
 
 // envelope is the shape every CloudRaya endpoint responds with. Validation
 // failures put the useful part in "error" — a list of per-field messages —

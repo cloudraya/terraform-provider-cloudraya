@@ -221,7 +221,7 @@ func (r *volumeResource) waitForActive(ctx context.Context, id string, timeout t
 		if err != nil {
 			return nil, err
 		}
-		if !strings.EqualFold(vol.Status.Label, "Provisioning") {
+		if !volumeTransitional(vol.Status.Label) {
 			return vol, nil
 		}
 		if time.Now().After(deadline) {
@@ -254,7 +254,7 @@ func (r *volumeResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	r.apply(vol, &state, state.ProjectID.ValueString())
+	r.applyAll(vol, &state, state.ProjectID.ValueString())
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
@@ -278,6 +278,12 @@ func (r *volumeResource) Update(ctx context.Context, req resource.UpdateRequest,
 			resp.Diagnostics.AddError("Unable to resize volume", err.Error())
 			return
 		}
+		// A resize reports "Processing" until it finishes, and an attach or
+		// detach sent meanwhile is refused.
+		if _, err := r.waitForActive(ctx, id, 15*time.Minute); err != nil {
+			resp.Diagnostics.AddError("Volume did not finish resizing", err.Error())
+			return
+		}
 	}
 
 	if !plan.VirtualMachineID.Equal(state.VirtualMachineID) {
@@ -287,24 +293,28 @@ func (r *volumeResource) Update(ctx context.Context, req resource.UpdateRequest,
 		// Moving between VMs needs a detach first; the volume can only be
 		// attached in one place at a time.
 		if oldVM != "" {
-			if err := r.detach(ctx, id); err != nil {
+			if err := retryWhileBusy(ctx, 5*time.Minute, func() error { return r.detach(ctx, id) }); err != nil {
 				resp.Diagnostics.AddError("Unable to detach volume", err.Error())
+				return
+			}
+			if _, err := r.waitForActive(ctx, id, 10*time.Minute); err != nil {
+				resp.Diagnostics.AddError("Volume did not settle after detach", err.Error())
 				return
 			}
 		}
 		if newVM != "" {
-			if err := r.attach(ctx, id, newVM); err != nil {
+			if err := retryWhileBusy(ctx, 5*time.Minute, func() error { return r.attach(ctx, id, newVM) }); err != nil {
 				resp.Diagnostics.AddError("Unable to attach volume", err.Error())
 				return
 			}
 		}
 	}
 
-	// Re-read so computed attributes (capacity after a resize) reflect reality
-	// rather than the pre-update values carried over from state.
-	vol, err := r.read(ctx, id)
+	// Wait for the volume to settle so computed attributes (capacity after a
+	// resize) reflect the result rather than the pre-update values.
+	vol, err := r.waitForActive(ctx, id, 10*time.Minute)
 	if err != nil {
-		resp.Diagnostics.AddError("Unable to read volume after update", err.Error())
+		resp.Diagnostics.AddError("Volume did not settle after update", err.Error())
 		return
 	}
 
@@ -347,6 +357,9 @@ func (r *volumeResource) Delete(ctx context.Context, req resource.DeleteRequest,
 
 func (r *volumeResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+	// force_destroy has no API representation; seed the default so the first
+	// plan after an import does not show a diff for it.
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("force_destroy"), false)...)
 }
 
 func (r *volumeResource) read(ctx context.Context, id string) (*volumeAPI, error) {
@@ -376,9 +389,15 @@ func (r *volumeResource) detach(ctx context.Context, id string) error {
 // already in the model when the API omits it, so an unexpected payload
 // degrades to "no drift detected" rather than to a spurious diff or a null in
 // a computed attribute.
-func (r *volumeResource) apply(vol *volumeAPI, m *volumeModel, projectID string) {
-	m.ID = types.StringValue(vol.ID)
+// volumeTransitional reports a status during which the volume is still being
+// changed: "Provisioning" after create, "Processing" after a resize.
+func volumeTransitional(label string) bool {
+	return strings.EqualFold(label, "Provisioning") || strings.EqualFold(label, "Processing")
+}
 
+// applyAll refreshes configured attributes as well as computed ones; only Read
+// uses it, where detecting drift is the point.
+func (r *volumeResource) applyAll(vol *volumeAPI, m *volumeModel, projectID string) {
 	if vol.Name != nil {
 		m.Name = types.StringValue(*vol.Name)
 	}
@@ -388,14 +407,24 @@ func (r *volumeResource) apply(vol *volumeAPI, m *volumeModel, projectID string)
 	if vol.ProductID != nil {
 		m.ProductID = types.StringValue(*vol.ProductID)
 	}
-
 	if vol.VirtualMachineID != nil {
 		if *vol.VirtualMachineID == "" {
 			m.VirtualMachineID = types.StringNull()
 		} else {
 			m.VirtualMachineID = types.StringValue(*vol.VirtualMachineID)
 		}
+	} else {
+		m.VirtualMachineID = types.StringNull()
 	}
+	r.apply(vol, m, projectID)
+}
+
+// apply fills only computed attributes. After create and update the
+// configured ones must keep their planned values: the API reports a resize or
+// a detach some time after accepting it, and echoing the stale value back is
+// rejected by Terraform as an inconsistent result.
+func (r *volumeResource) apply(vol *volumeAPI, m *volumeModel, projectID string) {
+	m.ID = types.StringValue(vol.ID)
 
 	switch {
 	case vol.ProjectID != nil && *vol.ProjectID != "":

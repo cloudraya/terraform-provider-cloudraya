@@ -20,7 +20,7 @@ resource "cloudraya_vpc_network" "app" {
   network_acl_id = cloudraya_vpc.main.initial_acl_id
   name           = "app"
   description    = "application tier"
-  ip_address     = "10.40.1.0"
+  ip_address     = "10.10.33.0"
   network_size   = "24"
 }
 ```

@@ -3,12 +3,12 @@
 page_title: "cloudraya_package Data Source - cloudraya"
 subcategory: ""
 description: |-
-  Looks up a CloudRaya virtual machine package (size) by name, scoped to a region. Backed by the product_2 catalog — see the provider README for its limitations. Fails with a specific error if the package exists but is not active in region_id, rather than letting a VM create fail opaquely later.
+  Looks up a CloudRaya virtual machine package (size) by name, scoped to a region. Fails with a specific error if the package exists but is not active in region_id, rather than letting a VM create fail opaquely later.
 ---
 
 # cloudraya_package (Data Source)
 
-Looks up a CloudRaya virtual machine package (size) by name, scoped to a region. Backed by the product_2 catalog — see the provider README for its limitations. Fails with a specific error if the package exists but is not active in `region_id`, rather than letting a VM create fail opaquely later.
+Looks up a CloudRaya virtual machine package (size) by name, scoped to a region. Fails with a specific error if the package exists but is not active in `region_id`, rather than letting a VM create fail opaquely later.
 
 ## Example Usage
 
@@ -16,7 +16,7 @@ Looks up a CloudRaya virtual machine package (size) by name, scoped to a region.
 # Packages are offered per region; the lookup fails at plan time if the
 # package exists but is not active in region_id.
 data "cloudraya_package" "small" {
-  name      = "small-free-1-IP"
+  name      = "Small-R2"
   region_id = data.cloudraya_region.main.id
 }
 ```
@@ -26,7 +26,7 @@ data "cloudraya_package" "small" {
 
 ### Required
 
-- `name` (String) Package name, for example `small-free-1-IP`.
+- `name` (String) Package name, for example `Small-R2`.
 - `region_id` (String) Region the package must be active in.
 
 ### Optional

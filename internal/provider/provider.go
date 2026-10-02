@@ -128,10 +128,6 @@ func (p *cloudrayaProvider) Resources(_ context.Context) []func() resource.Resou
 	}
 }
 
-// The lookup data sources read the product_2 catalog rather than the product
-// service, whose /v1/regions and /v1/products return integer ids instead of
-// the ULIDs create calls require. See client.ServiceProductCatalog and the
-// README for where the catalog is available.
 func (p *cloudrayaProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewRegionsDataSource,

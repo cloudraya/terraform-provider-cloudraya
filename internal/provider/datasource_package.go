@@ -38,12 +38,11 @@ func (d *packageDataSource) Metadata(_ context.Context, req datasource.MetadataR
 func (d *packageDataSource) Schema(_ context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: "Looks up a CloudRaya virtual machine package (size) by name, scoped to a " +
-			"region. Backed by the product_2 catalog — see the provider README for its limitations. " +
-			"Fails with a specific error if the package exists but is not active in `region_id`, rather " +
+			"region. Fails with a specific error if the package exists but is not active in `region_id`, rather " +
 			"than letting a VM create fail opaquely later.",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Package name, for example `small-free-1-IP`.",
+				MarkdownDescription: "Package name, for example `Small-R2`.",
 				Required:            true,
 			},
 			"region_id": schema.StringAttribute{

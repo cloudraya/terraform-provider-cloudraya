@@ -3,18 +3,18 @@
 page_title: "cloudraya_vm_storage_package Data Source - cloudraya"
 subcategory: ""
 description: |-
-  Looks up a CloudRaya block-storage (data disk) package by name. Backed by the product_2 catalog — see the provider README for its limitations.
+  Looks up a CloudRaya block-storage (data disk) package by name.
 ---
 
 # cloudraya_vm_storage_package (Data Source)
 
-Looks up a CloudRaya block-storage (data disk) package by name. Backed by the product_2 catalog — see the provider README for its limitations.
+Looks up a CloudRaya block-storage (data disk) package by name.
 
 ## Example Usage
 
 ```terraform
 data "cloudraya_vm_storage_package" "disk" {
-  name = "data-disk-15"
+  name = "Disk-50"
 }
 ```
 
@@ -23,7 +23,7 @@ data "cloudraya_vm_storage_package" "disk" {
 
 ### Required
 
-- `name` (String) Storage package name, for example `new-storage`.
+- `name` (String) Storage package name, for example `Disk-50`.
 
 ### Optional
 

@@ -216,7 +216,7 @@ func (r *vpcResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 					"it is never read back or reconciled, and editing it forces a new VPC. Manage this and " +
 					"any further subnets with `cloudraya_vpc_network` once the VPC exists.",
 				Optional:      true,
-				PlanModifiers: []planmodifier.Object{objectplanmodifier.RequiresReplace()},
+				PlanModifiers: []planmodifier.Object{replaceIfPreviouslySet()},
 				Attributes: map[string]schema.Attribute{
 					"name":         schema.StringAttribute{MarkdownDescription: "Subnet name.", Required: true},
 					"ip_address":   schema.StringAttribute{MarkdownDescription: "Subnet network address.", Required: true},
@@ -228,7 +228,7 @@ func (r *vpcResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				MarkdownDescription: "The first network ACL, created alongside the VPC. Used at create time " +
 					"only: it is never read back or reconciled, and editing it forces a new VPC.",
 				Optional:      true,
-				PlanModifiers: []planmodifier.Object{objectplanmodifier.RequiresReplace()},
+				PlanModifiers: []planmodifier.Object{replaceIfPreviouslySet()},
 				Attributes: map[string]schema.Attribute{
 					"name": schema.StringAttribute{MarkdownDescription: "ACL name.", Required: true},
 					"rules": schema.ListNestedAttribute{
@@ -250,7 +250,7 @@ func (r *vpcResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				},
 			},
 
-			"created_at": schema.StringAttribute{MarkdownDescription: "Creation timestamp.", Computed: true},
+			"created_at": schema.StringAttribute{MarkdownDescription: "Creation timestamp.", Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"initial_subnet_id": schema.StringAttribute{
 				MarkdownDescription: "Identifier of the subnet provisioned alongside the VPC.",
 				Computed:            true,
@@ -404,7 +404,68 @@ func (r *vpcResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	}
 
 	r.apply(&vpc, &state, optionalString(state.ProjectID))
+	if state.InitialSubnetID.IsNull() || state.InitialACLID.IsNull() {
+		if err := r.recoverInitialIDs(ctx, &vpc, &state); err != nil {
+			resp.Diagnostics.AddWarning("Could not recover the VPC's initial subnet and ACL",
+				err.Error()+"\n\ninitial_subnet_id and initial_acl_id stay unset.")
+		}
+	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
+// recoverInitialIDs finds the subnet and ACL created together with the VPC.
+// Only the create call names them, so after an import they are otherwise lost
+// and any configuration referencing initial_acl_id breaks. The create call
+// provisions all three in one go, so they share the VPC's created_at; a subnet
+// or ACL added later does not. If the initial one has since been deleted,
+// nothing matches and the attribute stays unset rather than pointing at the
+// wrong object.
+func (r *vpcResource) recoverInitialIDs(ctx context.Context, vpc *vpcAPI, m *vpcModel) error {
+	if vpc.CreatedAt == nil || *vpc.CreatedAt == "" {
+		return fmt.Errorf("the VPC reports no created_at to match against")
+	}
+	created := *vpc.CreatedAt
+
+	type item struct {
+		ID        string `json:"id"`
+		CreatedAt string `json:"created_at"`
+	}
+	earliestAt := func(items []item) string {
+		id := ""
+		for _, it := range items {
+			if it.CreatedAt == created && (id == "" || it.ID < id) {
+				id = it.ID
+			}
+		}
+		return id
+	}
+
+	if m.InitialSubnetID.IsNull() {
+		var nets struct {
+			Networks []item `json:"networks"`
+		}
+		if err := r.client.Do(ctx, http.MethodGet, client.ServiceNetwork,
+			"/v1/vpcs/"+vpc.ID+"/networks", nil, &nets); err != nil {
+			return fmt.Errorf("listing subnets: %w", err)
+		}
+		if id := earliestAt(nets.Networks); id != "" {
+			m.InitialSubnetID = types.StringValue(id)
+		}
+	}
+
+	if m.InitialACLID.IsNull() {
+		var acls struct {
+			ACLs []item `json:"acls"`
+		}
+		if err := r.client.Do(ctx, http.MethodGet, client.ServiceNetwork,
+			"/v1/acls?vpc_id="+vpc.ID, nil, &acls); err != nil {
+			return fmt.Errorf("listing ACLs: %w", err)
+		}
+		if id := earliestAt(acls.ACLs); id != "" {
+			m.InitialACLID = types.StringValue(id)
+		}
+	}
+	return nil
 }
 
 func (r *vpcResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -530,6 +591,18 @@ func (r *vpcResource) apply(vpc *vpcAPI, m *vpcModel, projectID string) {
 	if vpc.NetworkSize != nil && vpc.NetworkSize.Value != "" {
 		m.NetworkSize = types.StringValue(vpc.NetworkSize.Value)
 	}
+	// The detail response names these "region" and "network_address"; after an
+	// import they are otherwise empty, and as replace-on-change attributes an
+	// empty value would plan a destroy-and-recreate of the whole VPC.
+	if vpc.Region != nil {
+		fillIfEmpty(&m.RegionID, *vpc.Region)
+	}
+	if vpc.NetworkAddress != nil {
+		if ip, size, ok := splitCIDR(*vpc.NetworkAddress); ok {
+			fillIfEmpty(&m.IPAddress, ip)
+			fillIfEmpty(&m.NetworkSize, size)
+		}
+	}
 
 	if vpc.ProjectID != nil && *vpc.ProjectID != "" {
 		m.ProjectID = types.StringValue(*vpc.ProjectID)
@@ -621,4 +694,18 @@ func setOptionalIfPresent(dst *types.String, v *string) {
 		return
 	}
 	*dst = types.StringValue(*v)
+}
+
+// replaceIfPreviouslySet forces replacement when a create-time block changes,
+// but not when state holds no value. That happens after an import, because the
+// API never reports these blocks back; replacing then would destroy the VPC just
+// to record what it was created with.
+func replaceIfPreviouslySet() planmodifier.Object {
+	return objectplanmodifier.RequiresReplaceIf(
+		func(_ context.Context, req planmodifier.ObjectRequest, resp *objectplanmodifier.RequiresReplaceIfFuncResponse) {
+			resp.RequiresReplace = !req.StateValue.IsNull()
+		},
+		"Changing this forces a new VPC, except when it is first recorded after an import.",
+		"Changing this forces a new VPC, except when it is first recorded after an import.",
+	)
 }

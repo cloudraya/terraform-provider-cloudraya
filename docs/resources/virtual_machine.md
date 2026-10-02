@@ -14,11 +14,11 @@ A CloudRaya virtual machine. Supports the full lifecycle: deploy, read, in-place
 
 ```terraform
 data "cloudraya_region" "main" {
-  name = "Jakarta-Edge2-LIVE"
+  name = "Jakarta"
 }
 
 data "cloudraya_package" "small" {
-  name      = "small-free-1-IP"
+  name      = "Small-R2"
   region_id = data.cloudraya_region.main.id
 }
 
@@ -35,12 +35,12 @@ resource "cloudraya_ssh_keypair" "deploy" {
 resource "cloudraya_vpc" "main" {
   name         = "main"
   region_id    = data.cloudraya_region.main.id
-  ip_address   = "10.40.0.0"
+  ip_address   = "10.10.32.0"
   network_size = "19"
 
   initial_subnet = {
     name         = "main-subnet"
-    ip_address   = "10.40.0.0"
+    ip_address   = "10.10.32.0"
     network_size = "25"
   }
 
@@ -84,7 +84,7 @@ resource "cloudraya_virtual_machine" "web" {
 - `keep_ip_on_delete` (Boolean) Retain the public IP when the VM is destroyed. Defaults to `false`.
 - `note` (String) Free-form note. Changing this updates in place.
 - `project_id` (String) Project that owns the VM. Defaults to the provider's `project_id`. Changing this forces a new VM.
-- `ssh_keypair_ids` (List of String) SSH keypair IDs authorised on the VM. Changing this updates in place.
+- `ssh_keypair_ids` (List of String) SSH keypair IDs authorised on the VM. Changing this updates in place. CloudRaya does not report a VM's keypairs, so changes made outside Terraform are not detected, and the first apply after an import re-applies the configured keys.
 
 ### Read-Only
 

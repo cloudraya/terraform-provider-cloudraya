@@ -1,5 +1,5 @@
 data "cloudraya_vm_storage_package" "disk" {
-  name = "data-disk-15"
+  name = "Disk-50"
 }
 
 # A data disk attached to an existing virtual machine. Leave

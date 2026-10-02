@@ -8,10 +8,10 @@ import (
 	"github.com/cloudraya/terraform-provider-cloudraya/internal/client"
 )
 
-// productAPI mirrors one entry of GET /v1/products on the product_2 catalog,
-// verified against a live response. product_regions is the availability list:
-// a product can be globally active but still refused by create calls in a
-// region that is not in this list, or present but not is_active there.
+// productAPI mirrors one entry of GET /v1/products on the product catalog.
+// product_regions is the availability list: a product can be globally active
+// but still refused by create calls in a region that is not in this list, or
+// present but not is_active there.
 type productAPI struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
@@ -56,7 +56,7 @@ func (p productAPI) activeInRegion(regionID string) bool {
 func findProduct(ctx context.Context, c *client.Client, projectID, typeCode, name, regionID string) (*productAPI, error) {
 	var list productListAPI
 	path := "/v1/products?project_id=" + projectID
-	if err := c.Do(ctx, http.MethodGet, client.ServiceProductCatalog, path, nil, &list); err != nil {
+	if err := c.DoCatalog(ctx, http.MethodGet, path, nil, &list); err != nil {
 		return nil, fmt.Errorf("listing products: %w", err)
 	}
 

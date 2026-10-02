@@ -119,9 +119,11 @@ func (r *virtualMachineResource) Schema(_ context.Context, _ resource.SchemaRequ
 				Required:            true,
 			},
 			"ssh_keypair_ids": schema.ListAttribute{
-				MarkdownDescription: "SSH keypair IDs authorised on the VM. Changing this updates in place.",
-				ElementType:         types.StringType,
-				Optional:            true,
+				MarkdownDescription: "SSH keypair IDs authorised on the VM. Changing this updates in place. " +
+					"CloudRaya does not report a VM's keypairs, so changes made outside Terraform are not " +
+					"detected, and the first apply after an import re-applies the configured keys.",
+				ElementType: types.StringType,
+				Optional:    true,
 			},
 			"project_id": schema.StringAttribute{
 				MarkdownDescription: "Project that owns the VM. Defaults to the provider's `project_id`. " +
@@ -144,10 +146,10 @@ func (r *virtualMachineResource) Schema(_ context.Context, _ resource.SchemaRequ
 			"cpu_number":       schema.Int64Attribute{MarkdownDescription: "vCPU count, from the package.", Computed: true},
 			"ram_gb":           schema.Int64Attribute{MarkdownDescription: "RAM in GB, from the package.", Computed: true},
 			"rootdisk_size_gb": schema.Int64Attribute{MarkdownDescription: "Root disk size in GB.", Computed: true},
-			"template_name":    schema.StringAttribute{MarkdownDescription: "Resolved OS template name.", Computed: true},
+			"template_name":    schema.StringAttribute{MarkdownDescription: "Resolved OS template name.", Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"state":            schema.StringAttribute{MarkdownDescription: "Power state reported by the platform.", Computed: true},
 			"status_label":     schema.StringAttribute{MarkdownDescription: "Provisioning status label.", Computed: true},
-			"created_at":       schema.StringAttribute{MarkdownDescription: "Creation timestamp.", Computed: true},
+			"created_at":       schema.StringAttribute{MarkdownDescription: "Creation timestamp.", Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 		},
 	}
 }
@@ -341,6 +343,9 @@ func (r *virtualMachineResource) Delete(ctx context.Context, req resource.Delete
 
 func (r *virtualMachineResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+	// keep_ip_on_delete has no API representation; seed the default so the first
+	// plan after an import does not show a diff for it.
+	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("keep_ip_on_delete"), false)...)
 }
 
 // waitForReady polls until the VM leaves its transitional state. Deploy and

@@ -56,7 +56,7 @@ func (d *vpcNetworkDataSource) Schema(_ context.Context, _ datasource.SchemaRequ
 			"the project. To create a subnet instead, use the `cloudraya_vpc_network` resource.",
 		Attributes: map[string]schema.Attribute{
 			"name": schema.StringAttribute{
-				MarkdownDescription: "Subnet name, for example `default-vpcnet-042258`.",
+				MarkdownDescription: "Subnet name, for example `app-subnet`.",
 				Required:            true,
 			},
 			"project_id": schema.StringAttribute{
