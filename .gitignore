@@ -1,0 +1,6 @@
+terraform-provider-cloudraya
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+dist/
