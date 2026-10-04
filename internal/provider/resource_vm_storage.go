@@ -22,9 +22,10 @@ var (
 	_ resource.Resource                = (*volumeResource)(nil)
 	_ resource.ResourceWithConfigure   = (*volumeResource)(nil)
 	_ resource.ResourceWithImportState = (*volumeResource)(nil)
+	_ resource.ResourceWithMoveState   = (*volumeResource)(nil)
 )
 
-func NewVolumeResource() resource.Resource { return &volumeResource{} }
+func NewVMStorageResource() resource.Resource { return &volumeResource{} }
 
 type volumeResource struct {
 	client *client.Client
@@ -70,7 +71,7 @@ type volumeAPI struct {
 }
 
 func (r *volumeResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_volume"
+	resp.TypeName = req.ProviderTypeName + "_vm_storage"
 }
 
 func (r *volumeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -360,6 +361,12 @@ func (r *volumeResource) ImportState(ctx context.Context, req resource.ImportSta
 	// force_destroy has no API representation; seed the default so the first
 	// plan after an import does not show a diff for it.
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("force_destroy"), false)...)
+}
+
+// MoveState accepts state from cloudraya_volume, this resource's name before
+// 0.2.0.
+func (r *volumeResource) MoveState(ctx context.Context) []resource.StateMover {
+	return moveFromRenamed(ctx, r, "cloudraya_volume")
 }
 
 func (r *volumeResource) read(ctx context.Context, id string) (*volumeAPI, error) {

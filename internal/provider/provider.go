@@ -120,8 +120,8 @@ func (p *cloudrayaProvider) Configure(ctx context.Context, req provider.Configur
 
 func (p *cloudrayaProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		NewVirtualMachineResource,
-		NewVolumeResource,
+		NewVMResource,
+		NewVMStorageResource,
 		NewVPCResource,
 		NewVPCNetworkResource,
 		NewSSHKeypairResource,

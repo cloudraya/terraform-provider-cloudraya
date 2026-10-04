@@ -5,8 +5,26 @@ import (
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
+
+// moveFromRenamed lets a `moved` block carry state over from the name a
+// resource had before it was renamed. The schema did not change with the name,
+// so the old state is copied across unchanged.
+func moveFromRenamed(ctx context.Context, r resource.Resource, oldTypeName string) []resource.StateMover {
+	var s resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &s)
+	return []resource.StateMover{{
+		SourceSchema: &s.Schema,
+		StateMover: func(_ context.Context, req resource.MoveStateRequest, resp *resource.MoveStateResponse) {
+			if req.SourceTypeName != oldTypeName || !strings.HasSuffix(req.SourceProviderAddress, "cloudraya/cloudraya") {
+				return
+			}
+			resp.TargetState.Raw = req.SourceState.Raw
+		},
+	}}
+}
 
 // stringListValues flattens a types.List of strings. A null or unknown list
 // yields an empty slice rather than an error: callers treat "not set" and

@@ -42,7 +42,7 @@ resource "cloudraya_vpc" "main" {
   }
 }
 
-resource "cloudraya_virtual_machine" "web" {
+resource "cloudraya_vm" "web" {
   hostname        = "web-01"
   region_id       = data.cloudraya_region.main.id
   package_id      = data.cloudraya_package.small.id

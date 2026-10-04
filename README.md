@@ -11,8 +11,8 @@ through the [CloudRaya API](https://developers.cloudraya.com).
 
 | Resource | Manages |
 |---|---|
-| [`cloudraya_virtual_machine`](docs/resources/virtual_machine.md) | Virtual machines — deploy, rename, resize, change network or SSH keys, destroy |
-| [`cloudraya_volume`](docs/resources/volume.md) | Block-storage data disks — create, resize, attach and detach, destroy |
+| [`cloudraya_vm`](docs/resources/vm.md) | Virtual machines — deploy, rename, resize, change network or SSH keys, destroy |
+| [`cloudraya_vm_storage`](docs/resources/vm_storage.md) | Block-storage data disks — create, resize, attach and detach, destroy |
 | [`cloudraya_vpc`](docs/resources/vpc.md) | VPCs, together with their first subnet and ACL |
 | [`cloudraya_vpc_network`](docs/resources/vpc_network.md) | Additional subnets inside a VPC |
 | [`cloudraya_ssh_keypair`](docs/resources/ssh_keypair.md) | SSH public keys authorised on VMs |
@@ -128,7 +128,7 @@ resource "cloudraya_ssh_keypair" "deploy" {
   public_key = file("~/.ssh/id_ed25519.pub")
 }
 
-resource "cloudraya_virtual_machine" "web" {
+resource "cloudraya_vm" "web" {
   hostname        = "web-01"
   region_id       = data.cloudraya_region.main.id
   package_id      = data.cloudraya_package.small.id
@@ -137,11 +137,11 @@ resource "cloudraya_virtual_machine" "web" {
   ssh_keypair_ids = [cloudraya_ssh_keypair.deploy.id]
 }
 
-resource "cloudraya_volume" "data" {
+resource "cloudraya_vm_storage" "data" {
   name               = "web-01-data"
   region_id          = data.cloudraya_region.main.id
   product_id         = data.cloudraya_vm_storage_package.disk.id
-  virtual_machine_id = cloudraya_virtual_machine.web.id
+  virtual_machine_id = cloudraya_vm.web.id
 }
 ```
 
@@ -168,7 +168,7 @@ and every resource and data source has its own example under
 Every resource can be imported. Most take their ID:
 
 ```sh
-terraform import cloudraya_virtual_machine.web <vm_id>
+terraform import cloudraya_vm.web <vm_id>
 ```
 
 Subnets are addressed under their VPC, so they take both IDs:
@@ -182,6 +182,28 @@ no replacements. These updates record values the API only returns at creation
 time, such as a VPC's `initial_subnet` and `initial_acl` blocks. CloudRaya does
 not report which SSH keypairs a VM has, so that same apply also re-applies the
 VM's configured `ssh_keypair_ids`. After it, the plan is clean.
+
+## Upgrading from 0.1.x
+
+Version 0.2.0 renamed two resources: `cloudraya_virtual_machine` is now
+`cloudraya_vm`, and `cloudraya_volume` is now `cloudraya_vm_storage`. Their
+arguments are unchanged. Rename the blocks in your configuration and add a
+`moved` block for each one, so Terraform keeps the existing VMs and disks
+instead of replacing them (requires Terraform 1.8 or later):
+
+```terraform
+moved {
+  from = cloudraya_virtual_machine.web
+  to   = cloudraya_vm.web
+}
+
+moved {
+  from = cloudraya_volume.data
+  to   = cloudraya_vm_storage.data
+}
+```
+
+After one `terraform apply`, the `moved` blocks can be removed.
 
 ## Development
 

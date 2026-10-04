@@ -55,6 +55,12 @@ signs:
       - "${artifact}"
 
 release:
+  header: |
+    {{- if eq .Major 0 }}
+    > **Alpha release.** This provider is still in early development. Resource
+    > names, arguments and behaviour may change in future releases without a
+    > deprecation period. Pin an exact version and review plans carefully.
+    {{- end }}
   extra_files:
     - glob: terraform-registry-manifest.json
       name_template: "{{ .ProjectName }}_{{ .Version }}_manifest.json"

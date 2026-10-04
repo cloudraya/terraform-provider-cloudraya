@@ -44,7 +44,7 @@ resource "cloudraya_ssh_keypair" "deploy" {
   public_key = file(pathexpand(var.ssh_public_key_path))
 }
 
-resource "cloudraya_virtual_machine" "web" {
+resource "cloudraya_vm" "web" {
   hostname        = var.hostname
   region_id       = data.cloudraya_region.main.id
   package_id      = data.cloudraya_package.vm.id
@@ -54,21 +54,21 @@ resource "cloudraya_virtual_machine" "web" {
   note            = "managed by terraform"
 }
 
-resource "cloudraya_volume" "data" {
+resource "cloudraya_vm_storage" "data" {
   name               = "${var.hostname}-data"
   region_id          = data.cloudraya_region.main.id
   product_id         = data.cloudraya_vm_storage_package.disk.id
-  virtual_machine_id = cloudraya_virtual_machine.web.id
+  virtual_machine_id = cloudraya_vm.web.id
 }
 
 output "vm_id" {
-  value = cloudraya_virtual_machine.web.id
+  value = cloudraya_vm.web.id
 }
 
 output "vm_state" {
-  value = cloudraya_virtual_machine.web.state
+  value = cloudraya_vm.web.state
 }
 
 output "data_disk_gb" {
-  value = cloudraya_volume.data.disk_size_gb
+  value = cloudraya_vm_storage.data.disk_size_gb
 }

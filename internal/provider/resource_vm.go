@@ -21,9 +21,10 @@ var (
 	_ resource.Resource                = (*virtualMachineResource)(nil)
 	_ resource.ResourceWithConfigure   = (*virtualMachineResource)(nil)
 	_ resource.ResourceWithImportState = (*virtualMachineResource)(nil)
+	_ resource.ResourceWithMoveState   = (*virtualMachineResource)(nil)
 )
 
-func NewVirtualMachineResource() resource.Resource { return &virtualMachineResource{} }
+func NewVMResource() resource.Resource { return &virtualMachineResource{} }
 
 type virtualMachineResource struct {
 	client *client.Client
@@ -82,7 +83,7 @@ type vmAPI struct {
 }
 
 func (r *virtualMachineResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_virtual_machine"
+	resp.TypeName = req.ProviderTypeName + "_vm"
 }
 
 func (r *virtualMachineResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -346,6 +347,12 @@ func (r *virtualMachineResource) ImportState(ctx context.Context, req resource.I
 	// keep_ip_on_delete has no API representation; seed the default so the first
 	// plan after an import does not show a diff for it.
 	resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("keep_ip_on_delete"), false)...)
+}
+
+// MoveState accepts state from cloudraya_virtual_machine, this resource's name
+// before 0.2.0.
+func (r *virtualMachineResource) MoveState(ctx context.Context) []resource.StateMover {
+	return moveFromRenamed(ctx, r, "cloudraya_virtual_machine")
 }
 
 // waitForReady polls until the VM leaves its transitional state. Deploy and
