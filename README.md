@@ -214,6 +214,20 @@ Issues and pull requests are welcome. Please run `go vet ./...` and
 `go test ./...` before opening a pull request, and regenerate the docs if you
 change a schema.
 
+## Releasing
+
+Pushing a version tag publishes a signed release, which the Terraform Registry
+picks up automatically:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The `release` workflow builds the provider for each platform with GoReleaser
+and signs the checksums with the GPG key stored in the repository secrets
+`GPG_PRIVATE_KEY` and `PASSPHRASE`.
+
 ## License
 
 [Mozilla Public License 2.0](LICENSE)
