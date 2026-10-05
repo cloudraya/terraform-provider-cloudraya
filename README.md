@@ -4,9 +4,6 @@ A [Terraform](https://www.terraform.io) provider for [CloudRaya](https://cloudra
 virtual machines, block storage, VPCs, subnets and SSH keypairs, managed as code
 through the [CloudRaya API](https://developers.cloudraya.com).
 
-> **Status:** early release. The provider is not yet published to the Terraform
-> Registry; build it from source as described below.
-
 ## Resources and data sources
 
 | Resource | Manages |
@@ -35,34 +32,25 @@ Full reference documentation for every argument and attribute is in [`docs/`](do
 ## Requirements
 
 - [Terraform](https://developer.hashicorp.com/terraform/downloads) 1.0 or later
-- [Go](https://go.dev/doc/install) 1.27 or later, to build the provider
+- [Go](https://go.dev/doc/install) 1.27 or later, only to build the provider from source
 - A CloudRaya account and a project to provision into
 
 ## Installation
 
-Build the provider and install it into your `GOBIN`:
-
-```sh
-git clone https://github.com/cloudraya/terraform-provider-cloudraya.git
-cd terraform-provider-cloudraya
-go install .
-```
-
-Then point Terraform at the local build by adding a `dev_overrides` block to
-`~/.terraformrc`, replacing the path with your `GOBIN` (usually `~/go/bin`):
+The provider is published on the
+[Terraform Registry](https://registry.terraform.io/providers/cloudraya/cloudraya).
+Declare it in your configuration and run `terraform init`:
 
 ```hcl
-provider_installation {
-  dev_overrides {
-    "cloudraya/cloudraya" = "/Users/you/go/bin"
+terraform {
+  required_providers {
+    cloudraya = {
+      source  = "cloudraya/cloudraya"
+      version = "~> 0.2"
+    }
   }
-  direct {}
 }
 ```
-
-With an override in place, skip `terraform init` and run `terraform plan` or
-`terraform apply` directly. Terraform prints a warning that the override is
-active; that is expected.
 
 ## Authentication
 
@@ -92,7 +80,8 @@ A VM with an SSH key and an attached data disk, with every ID looked up by name:
 terraform {
   required_providers {
     cloudraya = {
-      source = "cloudraya/cloudraya"
+      source  = "cloudraya/cloudraya"
+      version = "~> 0.2"
     }
   }
 }
@@ -206,6 +195,32 @@ moved {
 After one `terraform apply`, the `moved` blocks can be removed.
 
 ## Development
+
+To try a local build, build the provider and install it into your `GOBIN`:
+
+```sh
+git clone https://github.com/cloudraya/terraform-provider-cloudraya.git
+cd terraform-provider-cloudraya
+go install .
+```
+
+Then point Terraform at the local build by adding a `dev_overrides` block to
+`~/.terraformrc`, replacing the path with your `GOBIN` (usually `~/go/bin`):
+
+```hcl
+provider_installation {
+  dev_overrides {
+    "cloudraya/cloudraya" = "/Users/you/go/bin"
+  }
+  direct {}
+}
+```
+
+With an override in place, skip `terraform init` and run `terraform plan` or
+`terraform apply` directly. Terraform prints a warning that the override is
+active; that is expected.
+
+Before sending a change, run the checks:
 
 ```sh
 go build ./...
